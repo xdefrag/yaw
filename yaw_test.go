@@ -1,4 +1,4 @@
-package notsnorlax
+package yaw_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/xdefrag/yaw"
 	pb "github.com/xdefrag/yaw/testdata/event"
 )
 
@@ -17,7 +18,7 @@ import (
 func TestPubSub(t *testing.T) {
 	assert := assert.New(t)
 
-	q := &Client{}
+	q := &yaw.Client{}
 	defer q.Close()
 
 	event := &pb.Event{
@@ -55,14 +56,12 @@ func TestPubSub(t *testing.T) {
 	<-consumerInit
 
 	for i := 1; i <= 100; i++ {
-		go assert.NoError(q.Publish(context.Background(), queue, event, PublishPersistent()))
+		go assert.NoError(q.Publish(context.Background(), queue, event, yaw.PublishPersistent()))
 		go assert.NoError(q.IsClosed())
 	}
 
 	wg.Wait()
 
-	// Консьюмер должен быть обязательно красиво потушен с помощью контекста,
-	// а то будет негодовать.
 	cancel()
 
 	time.Sleep(time.Second)
@@ -75,7 +74,7 @@ func TestPubSub(t *testing.T) {
 func TestReqRep(t *testing.T) {
 	assert := assert.New(t)
 
-	q := &Client{}
+	q := &yaw.Client{}
 	defer q.Close()
 
 	event := &pb.Event{
@@ -88,7 +87,7 @@ func TestReqRep(t *testing.T) {
 
 	go func() {
 		assert.NoError(q.Consume(ctx, queue, func(ctx context.Context, msg proto.Message) error {
-			hh := FromContext(ctx)
+			hh := yaw.FromContext(ctx)
 
 			assert.Contains(hh, "ReplyTo")
 			assert.Contains(hh, "CorrelationID")
@@ -102,12 +101,12 @@ func TestReqRep(t *testing.T) {
 
 			ev.Content = "Hello"
 
-			q.Publish(ctx, replyTo, ev, PublishCorrelationID(correlationID))
+			q.Publish(ctx, replyTo, ev, yaw.PublishCorrelationID(correlationID))
 
 			return nil
 		},
-			ConsumeAutoAck(),
-			ConsumeAutoDelete(),
+			yaw.ConsumeAutoAck(),
+			yaw.ConsumeAutoDelete(),
 		))
 	}()
 
@@ -134,15 +133,15 @@ func TestReqRep(t *testing.T) {
 
 				return nil
 			},
-			ConsumeAutoDelete(),
-			ConsumeAutoAck(),
+			yaw.ConsumeAutoDelete(),
+			yaw.ConsumeAutoAck(),
 		))
 
 		go assert.NoError(q.Publish(context.Background(),
 			queue,
 			event,
-			PublishReplyTo(replyTo),
-			PublishCorrelationID(corrID),
+			yaw.PublishReplyTo(replyTo),
+			yaw.PublishCorrelationID(corrID),
 		))
 
 		go assert.NoError(q.IsClosed())
@@ -159,7 +158,7 @@ func TestReqRep(t *testing.T) {
 func TestReqRepWithPublishAndConsume(t *testing.T) {
 	assert := assert.New(t)
 
-	q := &Client{}
+	q := &yaw.Client{}
 	defer q.Close()
 
 	event := &pb.Event{
@@ -171,7 +170,7 @@ func TestReqRepWithPublishAndConsume(t *testing.T) {
 	queue := "queue.test.pc"
 
 	go assert.NoError(q.Consume(ctx, queue, func(ctx context.Context, msg proto.Message) error {
-		hh := FromContext(ctx)
+		hh := yaw.FromContext(ctx)
 
 		assert.Contains(hh, "ReplyTo")
 
@@ -187,8 +186,8 @@ func TestReqRepWithPublishAndConsume(t *testing.T) {
 
 		return nil
 	},
-		ConsumeAutoAck(),
-		ConsumeAutoDelete(),
+		yaw.ConsumeAutoAck(),
+		yaw.ConsumeAutoDelete(),
 	))
 
 	var wg sync.WaitGroup
@@ -222,7 +221,7 @@ func TestReqRepWithPublishAndConsume(t *testing.T) {
 func TestReqRepErrors(t *testing.T) {
 	assert := assert.New(t)
 
-	q := &Client{}
+	q := &yaw.Client{}
 	defer q.Close()
 
 	event := &pb.Event{
@@ -236,8 +235,8 @@ func TestReqRepErrors(t *testing.T) {
 	go assert.NoError(q.Consume(ctx, queue, func(ctx context.Context, msg proto.Message) error {
 		return nil
 	},
-		ConsumeAutoAck(),
-		ConsumeAutoDelete(),
+		yaw.ConsumeAutoAck(),
+		yaw.ConsumeAutoDelete(),
 	))
 
 	var wg sync.WaitGroup
@@ -246,7 +245,8 @@ func TestReqRepErrors(t *testing.T) {
 
 	for i := 1; i <= 100; i++ {
 		go func() {
-			got, err := q.PublishAndConsume(context.Background(), queue, event, PublishAndConsumeTimeout(time.Millisecond))
+			got, err := q.PublishAndConsume(context.Background(), queue, event,
+				yaw.PublishAndConsumeTimeout(time.Millisecond))
 
 			assert.Nil(got)
 			assert.Error(err)

@@ -1,4 +1,4 @@
-package notsnorlax
+package yaw
 
 import (
 	"bytes"
@@ -21,20 +21,11 @@ import (
 )
 
 const (
-	// envAMQPURL Ссылка на amqp вида "amqps://guest:guest@rabbitmq:5672/".
-	envAMQPURL = "AMQP_URL"
-
-	// envAMQPChannelMax Максимально создаваемые каналы на подключении.
+	envAMQPURL        = "AMQP_URL"
 	envAMQPChannelMax = "AMQP_CHANNEL_MAX"
-
-	// envAQMPExchange Используемый обменник. По умолчанию не используется.
-	envAMQPExchange = "AMQP_EXCHANGE"
-
-	// envAMQPQOS Количество сообщений взятых перех паузой в 200мс.
-	envAMQPQOS = "AMQP_QOS"
-
-	// envAMQPSource Подписывание отправителя в хидере при публикации сообщений.
-	envAMQPSource = "AMQP_SOURCE"
+	envAMQPExchange   = "AMQP_EXCHANGE"
+	envAMQPQOS        = "AMQP_QOS"
+	envAMQPSource     = "AMQP_SOURCE"
 )
 
 var (
@@ -50,13 +41,10 @@ type Client struct {
 	logger logr.InfoLogger
 }
 
-// SetLogger Устанавливает логгер для событий внутри библиотеки.
-// Рекомендуется использовать для дебага.
 func (c *Client) SetLogger(logger logr.InfoLogger) {
 	c.logger = logger
 }
 
-// IsClosed Выдает ошибку amqp.ErrClosed, если коннекшн до RMQ закрылся.
 func (c *Client) IsClosed() error {
 	conn, err := c.getConnection()
 	if err != nil {
@@ -130,44 +118,36 @@ func (c *Client) getChannel() (*amqp.Channel, error) {
 
 var key = &struct{}{} // nolint
 
-// Headers Тип заголовков для сообщений amqp.
 type Headers map[string]interface{}
 
-// FromContext Достает заголовки из контекста. Рекомендуется использовать
-// только для дебага и логирования.
 func FromContext(ctx context.Context) Headers {
 	return ctx.Value(key).(Headers)
 }
 
-// ToContext Создает контекст с заголовками для отправки.
 func ToContext(ctx context.Context, h Headers) context.Context {
 	return context.WithValue(ctx, key, h)
 }
 
 type PublishOptionFn func(*amqp.Publishing)
 
-// PublishReplyTo Установка параметра ReplyTo в сообщение.
 func PublishReplyTo(queue string) PublishOptionFn {
 	return func(p *amqp.Publishing) {
 		p.ReplyTo = queue
 	}
 }
 
-// PublishCorrelationID Установка соответствующего заголовка.
 func PublishCorrelationID(id string) PublishOptionFn {
 	return func(p *amqp.Publishing) {
 		p.CorrelationId = id
 	}
 }
 
-// PublishPersistent установка персистентных сообщений: DeliveryMode = 2.
 func PublishPersistent() PublishOptionFn {
 	return func(p *amqp.Publishing) {
 		p.DeliveryMode = 2
 	}
 }
 
-// Publish Публикация сообщений.
 func (c *Client) Publish(ctx context.Context, queue string, msg proto.Message, optFns ...PublishOptionFn) error {
 	ch, err := c.getChannel()
 	if err != nil {
@@ -211,7 +191,6 @@ func (c *Client) Publish(ctx context.Context, queue string, msg proto.Message, o
 	)
 }
 
-// Consumer Функция для принятия сообщений.
 type Consumer func(ctx context.Context, msg proto.Message) error
 
 type ConsumeOptions struct {
@@ -225,45 +204,36 @@ type ConsumeOptions struct {
 
 type ConsumeOptionFn func(*ConsumeOptions)
 
-// ConsumeAutoAck Отключает необходимость подтверждения сообщений.
 func ConsumeAutoAck() ConsumeOptionFn {
 	return func(o *ConsumeOptions) {
 		o.autoAck = true
 	}
 }
 
-// ConsumeExclusive Устанавливает эксклюзивность очереди.
-// Использовать только, если знаешь, что делаешь. Если необходимо
-// удалить очередь после использования, лучше использовать ConsumeAutoDelete.
 func ConsumeExclusive() ConsumeOptionFn {
 	return func(o *ConsumeOptions) {
 		o.exclusive = true
 	}
 }
 
-// ConsumeAutoDelete удаляет очередь после закрытия канала. Дополнительно
-// при окончании контекста (ctx.Done) удаляет очередь через QueueDelete.
 func ConsumeAutoDelete() ConsumeOptionFn {
 	return func(o *ConsumeOptions) {
 		o.autoDelete = true
 	}
 }
 
-// ConsumeDurable Сохранять данные в очереди, даже если отсутствуют потребители.
 func ConsumeDurable() ConsumeOptionFn {
 	return func(o *ConsumeOptions) {
 		o.durable = true
 	}
 }
 
-// ConsumeOnce Потребить один раз, затем закончить контекст.
 func ConsumeOnce() ConsumeOptionFn {
 	return func(o *ConsumeOptions) {
 		o.once = true
 	}
 }
 
-// Consume Потребление сообщений из очереди.
 func (c *Client) Consume(ctx context.Context, queue string, h Consumer, optsFn ...ConsumeOptionFn) error {
 	ch, err := c.getChannel()
 	if err != nil {
@@ -402,15 +372,12 @@ type PublishAndConsumeOptions struct {
 
 type PublishAndConsumeOptionFn func(*PublishAndConsumeOptions)
 
-// PublishAndConsumeTimeout Время ожидания ответа из очереди. По умолчанию 1 секунда.
 func PublishAndConsumeTimeout(t time.Duration) PublishAndConsumeOptionFn {
 	return func(o *PublishAndConsumeOptions) {
 		o.timeout = t
 	}
 }
 
-// PublishAndConsume Фасад для публикации и потребления (читай как RPC). Отправляет сообщение
-// в очередь, ожидает ответа по ReplyTo и возвращает из функции.
 func (c *Client) PublishAndConsume(ctx context.Context, queue string,
 	msg proto.Message, optFns ...PublishAndConsumeOptionFn) (proto.Message, error) {
 	opts := PublishAndConsumeOptions{
@@ -460,7 +427,6 @@ func (c *Client) PublishAndConsume(ctx context.Context, queue string,
 	}
 }
 
-// QueueDelete Удаление очереди.
 func (c *Client) QueueDelete(queue string) error {
 	ch, err := c.getChannel()
 	if err != nil {
@@ -472,7 +438,6 @@ func (c *Client) QueueDelete(queue string) error {
 	return err
 }
 
-// QueuePurge Отчистка очереди.
 func (c *Client) QueuePurge(queue string) error {
 	ch, err := c.getChannel()
 	if err != nil {
@@ -484,7 +449,6 @@ func (c *Client) QueuePurge(queue string) error {
 	return err
 }
 
-// Close закрывает подключение.
 func (c *Client) Close() error {
 	return c.conn.Close()
 }
