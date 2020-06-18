@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -45,6 +46,7 @@ var (
 type Client struct {
 	conn   *amqp.Connection
 	ch     *amqp.Channel
+	mu     sync.Mutex
 	logger logr.InfoLogger
 }
 
@@ -100,6 +102,9 @@ func (c *Client) getConnection() (*amqp.Connection, error) {
 }
 
 func (c *Client) getChannel() (*amqp.Channel, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.ch != nil {
 		return c.ch, nil
 	}
