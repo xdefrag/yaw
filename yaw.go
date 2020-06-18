@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	// envAMQPURL Ссылка на amqp вида "https://guest:guest@rabbitmq:5672/".
+	// envAMQPURL Ссылка на amqp вида "amqps://guest:guest@rabbitmq:5672/".
 	envAMQPURL = "AMQP_URL"
 
 	// envAMQPChannelMax Максимально создаваемые каналы на подключении.

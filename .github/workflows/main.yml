@@ -20,7 +20,10 @@ jobs:
         image: rabbitmq:3.8-alpine
         ports:
           - 5672:5672
+        options: --health-cmd rabbitmqctl ping --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@v1
       - name: Tests
         run: go test -v -race ./...
+        env:
+          AMQP_URL: "amqp://guest:guest@rabbitmq:5672/"
