@@ -10,10 +10,16 @@ jobs:
       - uses: actions/checkout@v1
       - name: Linter
         run: golangci-lint run
+
   test:
     runs-on: [ubuntu-latest]
     container: 
       image: golang:latest
+    services:
+      rabbitmq:
+        image: rabbitmq:3.8-alpine
+      ports:
+        - 5672:5672
     steps:
       - uses: actions/checkout@v1
       - name: Tests
