@@ -1,0 +1,20 @@
+name: CI
+
+on: [push]
+
+jobs:
+  lint:
+    runs-on: [ubuntu-latest]
+    container: golangci/golangci-lint:v1.21.0
+    steps:
+      - uses: actions/checkout@v1
+      - name: Linter
+        run: golangci-lint run
+  test:
+    runs-on: [ubuntu-latest]
+    container: 
+      image: golang:latest
+    steps:
+      - uses: actions/checkout@v1
+      - name: Tests
+        run: go test -v -race ./...
