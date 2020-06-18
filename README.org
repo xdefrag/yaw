@@ -1,0 +1,5 @@
+#+title: YAW
+#+author: Stanislaw Karkavin
+#+description: Yet Another amqp Wrapper!
+
+AMQP + Protobuf = <3
